@@ -10,36 +10,26 @@
       ./hardware-configuration.nix
     ];
 
-  # Use the GRUB 2 boot loader.
-  boot.loader.grub.enable = true;
-  boot.loader.grub.version = 2;
-  # boot.loader.grub.efiSupport = true;
-  # boot.loader.grub.efiInstallAsRemovable = true;
-  # boot.loader.efi.efiSysMountPoint = "/boot/efi";
-  # Define on which hard drive you want to install Grub.
-  boot.loader.grub.device = "/dev/sda"; # or "nodev" for efi only
-
-  # Switch kernel to 4.14 for Parallels compatibility
-  boot.kernelPackages = pkgs.linuxPackages_4_14;
+  # Use the systemd-boot EFI boot loader.
+  boot.loader.systemd-boot.enable = true;
+  boot.loader.efi.canTouchEfiVariables = false;
+  boot.loader.grub.useOSProber = true;
 
   nixpkgs.config.allowUnfree = true;
-  hardware.parallels.enable = true;
-  hardware.parallels.package = 
-    let src = pkgs.fetchgit { 
-	    url = "https://github.com/saaadhu/prl-tools.git";
-	    rev = "e42c51e38a74ec161da80da5c56f99204f2a67b4";
-	    sha256 = "0d5aq8sz5wk2dnhwqv3bhkmzkkfyv138d6qpznrgsasvas6gm0d1";
-    };
-    in pkgs.linuxPackages_4_14.callPackage "${src}/default.nix" {};
 
-  networking.hostName = "nightfury";
-  # networking.wireless.enable = true;  # Enables wireless support via wpa_supplicant.
+  # networking.hostName = "nixos"; # Define your hostname.
+  #networking.wireless.enable = true;  # Enables wireless support via wpa_supplicant.
 
   # The global useDHCP flag is deprecated, therefore explicitly set to false here.
   # Per-interface useDHCP will be mandatory in the future, so this generated config
   # replicates the default behaviour.
   networking.useDHCP = false;
-  networking.interfaces.enp0s5.useDHCP = true;
+  networking.interfaces.eno1.useDHCP = true;
+  networking.interfaces.wlp2s0.useDHCP = true;
+  
+  networking.networkmanager.enable = true;
+
+  networking.hostName = "nightfury";
 
   # Configure network proxy if necessary
   # networking.proxy.default = "http://user:password@proxy:port/";
@@ -53,6 +43,8 @@
   # };
 
   # Set your time zone.
+  # time.timeZone = "Europe/Amsterdam";
+  #
   time.timeZone = "Asia/Kolkata";
 
   fonts.fonts = with pkgs; [
@@ -63,25 +55,35 @@
     terminus_font
   ];
 
-  # List packages installed in system profile. To search, run:
-  # $ nix search wget
   environment.systemPackages = with pkgs; [
      emacs
      firefox
      git
+     gnutls # For mu4e
      htop
      jq
+     mu
+     offlineimap
      openssh
      p7zip
      patchelf
      python
      ripgrep
+     teams
      tmux
      unzip
      vim
      wget
      zip
   ];
+
+
+
+  # List packages installed in system profile. To search, run:
+  # $ nix search wget
+  # environment.systemPackages = with pkgs; [
+  #   wget vim
+  # ];
 
   # Some programs need SUID wrappers, can be configured further or are
   # started in user sessions.
@@ -108,73 +110,35 @@
 
   # Enable sound.
   # sound.enable = true;
-  # hardware.pulseaudio.enable = true;
-   services.xserver.config = ''
-# DefaultFlags section
-Section "ServerFlags"
-	Option	"AllowEmptyInput"	"yes"
-	Option	"AutoAddDevices"	"yes"
-EndSection
-
-# Parallels Video section
-Section "Device"
-	Identifier	"Parallels Video"
-	Driver	"prlvideo"
-EndSection
-
-# Parallels Monitor section
-Section "Monitor"
-	Identifier	"Parallels Monitor"
-	VendorName	"Parallels Inc."
-	ModelName	"Parallels Monitor"
-EndSection
-
-# Parallels Screen section
-Section "Screen"
-	Identifier	"Parallels Screen"
-	Device	"Parallels Video"
-	Monitor	"Parallels Monitor"
-	Option	"NoMTRR"
-	SubSection	"Display"
-		Depth	24
-		Modes	"1024x768" "800x600" "640x480"
-	EndSubSection
-EndSection
-
-# DefaultFlags section
-Section "ServerFlags"
-	Option	"AllowEmptyInput"	"yes"
-	Option	"AutoAddDevices"	"yes"
-EndSection
-
-# DefaultLayout section
-Section "ServerLayout"
-	Identifier	"DefaultLayout"
-	Screen	"Parallels Screen"
-EndSection
-   '';
-
+  hardware.pulseaudio.enable = true;
 
   # Enable the X11 windowing system.
-   services.xserver.enable = true;
-   services.xserver.layout = "us";
-   #services.xserver.xkbOptions = "eurosign:e";
+  services.xserver.enable = true;
+  services.xserver.layout = "us";
+  # services.xserver.xkbOptions = "eurosign:e";
 
   # Enable touchpad support.
-   services.xserver.libinput.enable = true;
-   services.xserver.autoRepeatDelay = 180;
-   services.xserver.autoRepeatInterval = 250;
-  # Enable the KDE Desktop Environment.
-   services.xserver.displayManager.sddm.enable = true;
-   services.xserver.desktopManager.plasma5.enable = true;
+  services.xserver.libinput.enable = true;
+  services.xserver.autoRepeatDelay = 180;
+  services.xserver.autoRepeatInterval = 250;
 
-  # Define a user account. Don't forget to set a password with ‘passwd’.
+  # Enable the KDE Desktop Environment.
+  services.xserver.displayManager.sddm.enable = true;
+  services.xserver.desktopManager.plasma5.enable = true;
+
   users.users.saaadhu = {
      isNormalUser = true;
-     extraGroups = [ "wheel"]; # Enable ‘sudo’ for the user.
+     extraGroups = [ "wheel" "networkmanager"]; # Enable ‘sudo’ for the user.
   };
 
   services.ntp.enable = true;
+  fileSystems."/".options = [ "noatime" "nodiratime" "discard" ];
+
+  # Define a user account. Don't forget to set a password with ‘passwd’.
+  # users.users.jane = {
+  #   isNormalUser = true;
+  #   extraGroups = [ "wheel" ]; # Enable ‘sudo’ for the user.
+  # };
 
   # This value determines the NixOS release from which the default
   # settings for stateful data, like file locations and database versions
